@@ -9,57 +9,91 @@ st.set_page_config(page_title="PrepPilot", page_icon="🚀", layout="wide")
 MODEL = "gemini-2.0-flash"
 
 VERDICT = {
-    "do_fully":  {"label": "DO FULLY",  "color": "#15803d", "bg": "#f0fdf4"},
-    "satisfice": {"label": "SATISFICE", "color": "#b45309", "bg": "#fffbeb"},
-    "skip":      {"label": "SKIP",      "color": "#b91c1c", "bg": "#fef2f2"},
+    "do_fully":  {"label": "DO FULLY",  "color": "#059669", "bg": "#ECFDF5"},
+    "satisfice": {"label": "SATISFICE", "color": "#F59E0B", "bg": "#FFFBEB"},
+    "skip":      {"label": "SKIP",      "color": "#F43F5E", "bg": "#FFF1F2"},
 }
 
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
 #MainMenu, footer {visibility: hidden;}
-.block-container {padding-top: 2rem; max-width: 1200px;}
+html, body, [class*="css"] {font-family: 'Outfit', sans-serif;}
+.block-container {padding-top: 1.5rem; max-width: 1200px;}
+.stApp {background: #fffdf9;}
+
 .pp-hero {
-  background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 60%, #6d28d9 100%);
-  border-radius: 18px; padding: 2rem 2.25rem; margin-bottom: 1.75rem; color: #fff;
+  background: linear-gradient(120deg, #FF5E5B 0%, #FF8C42 45%, #FFC93C 100%);
+  border-radius: 24px; padding: 2.4rem 2.5rem; margin-bottom: 1.75rem;
+  color: #fff; box-shadow: 0 14px 40px -12px rgba(255,94,91,.55);
+  position: relative; overflow: hidden;
 }
-.pp-hero h1 {font-size: 2.6rem; margin: 0; font-weight: 800; letter-spacing: -1px;}
-.pp-hero p {margin: .4rem 0 0; opacity: .82; font-size: 1.02rem;}
+.pp-hero:after {
+  content: ""; position: absolute; right: -60px; top: -60px;
+  width: 240px; height: 240px; border-radius: 50%;
+  background: rgba(255,255,255,.14);
+}
+.pp-hero h1 {
+  font-size: 3.1rem; margin: 0; font-weight: 800; letter-spacing: -1.5px;
+  text-shadow: 0 2px 12px rgba(0,0,0,.12);
+}
+.pp-hero p {margin: .5rem 0 0; font-size: 1.08rem; font-weight: 600; opacity: .95;}
+.pp-hero .pp-tag {
+  display: inline-block; margin-bottom: .7rem; font-size: .7rem; font-weight: 800;
+  letter-spacing: .14em; padding: .3rem .75rem; border-radius: 999px;
+  background: rgba(255,255,255,.22); border: 1px solid rgba(255,255,255,.35);
+}
+
 .pp-card {
-  border-radius: 14px; padding: 1.1rem 1.3rem; margin-bottom: .85rem;
-  border: 1px solid #e5e7eb; border-left: 6px solid var(--accent);
-  background: var(--cardbg);
+  border-radius: 18px; padding: 1.25rem 1.4rem; margin-bottom: 1rem;
+  background: var(--cardbg); border: 2px solid var(--accent);
+  box-shadow: 0 8px 22px -14px var(--accent);
+  transition: transform .15s ease, box-shadow .15s ease;
 }
-.pp-card .pp-top {display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;}
-.pp-card h3 {margin: 0; font-size: 1.15rem; font-weight: 700; color: #111827;}
+.pp-card:hover {transform: translateY(-3px); box-shadow: 0 16px 32px -16px var(--accent);}
+.pp-card .pp-top {display:flex; justify-content:space-between; align-items:baseline; gap:1rem;}
+.pp-card h3 {margin:0; font-size:1.22rem; font-weight:800; color:#1a1a2e;}
 .pp-badge {
-  font-size: .68rem; font-weight: 800; letter-spacing: .09em;
-  padding: .3rem .6rem; border-radius: 999px; white-space: nowrap;
-  color: #fff; background: var(--accent);
+  font-size:.66rem; font-weight:800; letter-spacing:.1em;
+  padding:.35rem .7rem; border-radius:999px; white-space:nowrap;
+  color:#fff; background:var(--accent); box-shadow:0 3px 10px -3px var(--accent);
 }
-.pp-meta {font-size: .82rem; color: #6b7280; margin: .45rem 0 .6rem;}
-.pp-card ul {margin: 0; padding-left: 1.15rem;}
-.pp-card li {font-size: .9rem; color: #374151; margin-bottom: .22rem;}
+.pp-meta {font-size:.85rem; color:#6b6b80; margin:.5rem 0 .65rem; font-weight:500;}
+.pp-card ul {margin:0; padding-left:1.2rem;}
+.pp-card li {font-size:.92rem; color:#33334d; margin-bottom:.28rem;}
+
 .pp-chip {
-  display: inline-block; font-size: .72rem; padding: .18rem .5rem;
-  border-radius: 6px; background: #eef2ff; color: #4338ca;
-  margin-right: .3rem; font-weight: 600;
+  display:inline-block; font-size:.7rem; padding:.2rem .55rem; border-radius:8px;
+  background:#FFEDD5; color:#C2410C; margin-right:.3rem; font-weight:700;
 }
 .pp-skip {
-  border-radius: 10px; padding: .75rem 1rem; margin-bottom: .5rem;
-  background: #fef2f2; border: 1px dashed #fca5a5; font-size: .9rem; color: #7f1d1d;
+  border-radius:14px; padding:.85rem 1.1rem; margin-bottom:.55rem;
+  background:#FFF1F2; border:2px dashed #FDA4AF; font-size:.92rem; color:#9F1239;
 }
 .pp-empty {
-  border: 2px dashed #d1d5db; border-radius: 16px; padding: 3rem 2rem;
-  text-align: center; color: #9ca3af;
+  border:3px dashed #FFD9A0; border-radius:22px; padding:3.5rem 2rem;
+  text-align:center; background:#FFFBF2;
 }
-.pp-empty h3 {color: #6b7280; margin: 0 0 .4rem; font-weight: 700;}
+.pp-empty h3 {color:#EA580C; margin:0 0 .5rem; font-weight:800; font-size:1.6rem;}
+.pp-empty p {color:#A16207; font-weight:500;}
+
+section[data-testid="stSidebar"] {background:#FFF8F0; border-right:2px solid #FFE4C4;}
+.stButton>button, .stFormSubmitButton>button {
+  border-radius:12px !important; font-weight:800 !important; border:none !important;
+  background:linear-gradient(120deg,#FF5E5B,#FF8C42) !important; color:#fff !important;
+  box-shadow:0 6px 18px -6px rgba(255,94,91,.6) !important;
+}
+.stProgress > div > div > div > div {
+  background:linear-gradient(90deg,#FFC93C,#FF8C42,#FF5E5B) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="pp-hero">
-  <h1>PrepPilot</h1>
-  <p>Existing tools organise your time. This one understands your workload.</p>
+  <span class="pp-tag">AI PREP &amp; TRIAGE COPILOT</span>
+  <h1>PrepPilot ✦</h1>
+  <p>Everything else organises your time. This one understands your workload.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -137,7 +171,6 @@ def plan_as_text(plan):
     return "\n".join(lines)
 
 
-# ---------------- sidebar: input ----------------
 with st.sidebar:
     st.markdown("### Tonight")
     hours_free = st.number_input("Hours free", 0.5, 12.0, 3.0, 0.5)
@@ -165,7 +198,8 @@ with st.sidebar:
         for i, it in enumerate(st.session_state["items"]):
             c1, c2 = st.columns([5, 1])
             c1.markdown(
-                f"**{it['title']}**  \n<span class='pp-chip'>{it['due'].replace('_',' ')}</span>"
+                f"**{it['title']}**  \n"
+                f"<span class='pp-chip'>{it['due'].replace('_',' ')}</span>"
                 f"<span class='pp-chip'>{it['familiarity']}</span>"
                 f"<span class='pp-chip'>{it['weight']}</span>",
                 unsafe_allow_html=True,
@@ -185,13 +219,12 @@ with st.sidebar:
     st.caption("Nothing is stored. No login, no uploads.")
 
 
-# ---------------- main: output ----------------
 plan = st.session_state["plan"]
 
 if not plan:
     st.markdown("""
     <div class="pp-empty">
-      <h3>No plan yet</h3>
+      <h3>Nothing planned yet ✦</h3>
       <p>Add tonight's work in the sidebar, then hit <b>Plan my night</b>.</p>
     </div>
     """, unsafe_allow_html=True)
