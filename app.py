@@ -1,8 +1,13 @@
+import json
+import re
 import streamlit as st
+from google import genai
 
 st.set_page_config(page_title="PrepPilot", page_icon="🚀")
 st.title("PrepPilot")
 st.caption("Tell me tonight's workload. I'll tell you what to do, skim, and skip.")
+
+MODEL = "gemini-2.0-flash"
 
 VERDICT = {
     "do_fully": ("🟢", "DO FULLY"),
@@ -10,38 +15,99 @@ VERDICT = {
     "skip": ("🔴", "SKIP"),
 }
 
-FAKE_PLAN = {
-    "blocks": [
-        {"title": "Corporate Strategy pre-read", "start": "19:30", "minutes": 75,
-         "verdict": "do_fully",
-         "why": "Quiz at class start and the material is new to you",
-         "how": ["Read the exhibits before the narrative",
-                 "Map the case onto 5 Forces",
-                 "Write two questions to ask in class"]},
-        {"title": "Valuation problem set", "start": "20:45", "minutes": 45,
-         "verdict": "satisfice",
-         "why": "Due this week, so a partial pass is enough tonight",
-         "how": ["Do questions 1-3 only",
-                 "Stop at 45 minutes regardless of progress",
-                 "Flag what you skipped for tomorrow"]},
-        {"title": "Group PPT review", "start": "21:30", "minutes": 30,
-         "verdict": "satisfice",
-         "why": "Submission is at 6 AM but you are reviewing, not building",
-         "how": ["Check the numbers on slides 4-6",
-                 "Send comments in the group chat, do not edit"]},
-    ],
-    "skipped": [
-        {"title": "Optional HBR article",
-         "why": "No graded component and nothing left in the budget tonight"},
-    ],
-    "total_minutes": 150,
-    "note": "Valuation gets a 45-minute satisficing pass only.",
-}
-
 if "items" not in st.session_state:
     st.session_state["items"] = []
 if "plan" not in st.session_state:
     st.session_state["plan"] = None
+
+
+@st.cache_resource
+def get_client():
+    return genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+
+
+@st.cache_data
+def load_prompt():
+    with open("prompt.txt") as f:
+        return f.read()
+
+
+def clean_json(text):
+    text = re.sub(r"^\s*```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```\s*$", "", text)
+    return text.strip()
+
+
+def validate(plan):
+    if not isinstance(plan, dict):
+        raise ValueError("Model did not return an object.")
+    if "blocks" not in plan:
+        raise ValueError("Response has no 'blocks'.")
+    plan.setdefault("skipped", [])
+    plan.setdefault("note", "")
+    for b in plan["blocks"]:
+        for key in ("title", "start", "minutes", "verdict", "why", "how"):
+            if key not in b:
+                raise ValueError(f"A block is missing '{key}'.")
+        if b["verdict"] not in VERDICT:
+            raise ValueError(f"Illegal verdict: {b['verdict']}")
+        b["minutes"] = int(b["minutes"])
+    plan["total_minutes"] = sum(b["minutes"] for b in plan["blocks"])
+    return plan
+
+
+def get_plan(items, hours_free):
+    payload = json.dumps({"hours_free": hours_free, "items": items})
+    last_error = None
+    for _ in range(2):
+        try:
+            resp = get_client().models.generate_content(
+                model=MODEL,
+                contents=payload,
+                config={
+                    "system_instruction": load_prompt(),
+                    "temperature": 0.2,
+                    "response_mime_type": "application/json",
+                },
+            )
+            return validate(json.loads(clean_json(resp.text)))
+        except Exception as e:
+            last_error = e
+    raise last_error
+
+
+def render_plan(plan, budget_minutes):
+    used = sum(b["minutes"] for b in plan["blocks"])
+    st.header("Tonight's plan")
+    if used > budget_minutes:
+        st.warning(
+            f"This plan needs {used} min but you only have {int(budget_minutes)}. "
+            "Something else has to go."
+        )
+    st.progress(
+        min(used / budget_minutes, 1.0) if budget_minutes else 0.0,
+        text=f"{used} of {int(budget_minutes)} minutes used",
+    )
+    if plan.get("note"):
+        st.info(plan["note"])
+
+    for b in plan["blocks"]:
+        icon, label = VERDICT.get(b["verdict"], ("⚪", b["verdict"].upper()))
+        with st.container(border=True):
+            top = st.columns([6, 2])
+            top[0].markdown(f"### {b['title']}")
+            top[1].markdown(f"### {icon} {label}")
+            st.caption(f"{b['start']} · {b['minutes']} min · {b['why']}")
+            for step in b["how"]:
+                st.markdown(f"- {step}")
+
+    if plan.get("skipped"):
+        st.subheader("Consciously skipped")
+        for s in plan["skipped"]:
+            st.markdown(f"🔴 **{s['title']}** — {s['why']}")
+
+    st.caption("Nothing you enter is stored. No login, no uploads, no saved data.")
+
 
 hours_free = st.number_input(
     "Hours free tonight", min_value=0.5, max_value=12.0, value=3.0, step=0.5
@@ -72,39 +138,6 @@ with st.form("add_item", clear_on_submit=True):
                 "weight": weight,
             })
 
-
-def render_plan(plan, budget_minutes):
-    used = sum(b["minutes"] for b in plan["blocks"])
-
-    st.header("Tonight's plan")
-    if used > budget_minutes:
-        st.warning(
-            f"This plan needs {used} min but you only have {int(budget_minutes)}. "
-            "Something else has to go."
-        )
-    st.progress(
-        min(used / budget_minutes, 1.0) if budget_minutes else 0.0,
-        text=f"{used} of {int(budget_minutes)} minutes used",
-    )
-    if plan.get("note"):
-        st.info(plan["note"])
-
-    for b in plan["blocks"]:
-        icon, label = VERDICT.get(b["verdict"], ("⚪", b["verdict"].upper()))
-        with st.container(border=True):
-            top = st.columns([6, 2])
-            top[0].markdown(f"### {b['title']}")
-            top[1].markdown(f"### {icon} {label}")
-            st.caption(f"{b['start']} · {b['minutes']} min · {b['why']}")
-            for step in b["how"]:
-                st.markdown(f"- {step}")
-
-    if plan.get("skipped"):
-        st.subheader("Consciously skipped")
-        for s in plan["skipped"]:
-            st.markdown(f"🔴 **{s['title']}** — {s['why']}")
-
-
 if st.session_state["items"]:
     st.subheader(f"{len(st.session_state['items'])} item(s)")
     for i, it in enumerate(st.session_state["items"]):
@@ -121,9 +154,15 @@ if st.session_state["items"]:
 
     st.divider()
     if st.button("Plan my night", type="primary"):
-        st.session_state["plan"] = FAKE_PLAN
+        with st.spinner("Working out tonight's plan..."):
+            try:
+                st.session_state["plan"] = get_plan(
+                    st.session_state["items"], hours_free
+                )
+            except Exception as e:
+                st.error(f"Couldn't build a plan. {type(e).__name__}: {e}")
 
-    with st.expander("Debug: payload that will go to the AI"):
+    with st.expander("Debug: payload sent to the AI"):
         st.json({"hours_free": hours_free, "items": st.session_state["items"]})
 else:
     st.info("Add your first item above.")
